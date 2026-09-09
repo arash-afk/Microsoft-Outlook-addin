@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Save to SharePoint</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; padding: 16px; }
+    button {
+      padding: 10px 18px;
+      font-size: 14px;
+      cursor: pointer;
+      background: #2b579a;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+    button:disabled { opacity: 0.6; cursor: default; }
+    #status { margin-top: 14px; font-size: 13px; color: #333; }
+  </style>
+</head>
+<body>
+  <button id="saveBtn">Save to SharePoint</button>
+  <div id="status"></div>
+
+  <script>
+    // REPLACE this with the HTTP POST URL from your "When a HTTP request is received" trigger
+    const FLOW_URL = "PASTE_YOUR_HTTP_FLOW_URL_HERE";
+
+    Office.onReady(() => {
+      document.getElementById("saveBtn").onclick = saveToSharePoint;
+    });
+
+    function saveToSharePoint() {
+      const btn = document.getElementById("saveBtn");
+      const status = document.getElementById("status");
+      btn.disabled = true;
+      status.textContent = "Saving...";
+
+      // Convert whatever ID format this Outlook client gives us into the
+      // REST-style ID your Get email (V2) action expects, so it works the
+      // same whether the lawyer is on web, new Outlook, or classic desktop.
+      const restId = Office.context.mailbox.convertToRestId(
+        Office.context.mailbox.item.itemId,
+        Office.MailboxEnums.RestVersion.v2_0
+      );
+
+      fetch(FLOW_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: restId })
+      })
+        .then((res) => res.json().catch(() => ({})))
+        .then((data) => {
+          status.textContent = "Done: " + (data.result || "request sent, check SharePoint");
+        })
+        .catch((err) => {
+          status.textContent = "Error: " + err.message;
+        })
+        .finally(() => {
+          btn.disabled = false;
+        });
+    }
+  </script>
+</body>
+</html>
