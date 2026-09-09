@@ -44,7 +44,7 @@
         Office.context.mailbox.item.itemId,
         Office.MailboxEnums.RestVersion.v2_0
       );
-
+ alert(restId);
       fetch(FLOW_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
