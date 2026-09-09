@@ -20,6 +20,9 @@
   </style>
 </head>
 <body>
+  <label for="msgIdInput" style="display:block; font-size:13px; margin-bottom:4px;">Message ID (editable for testing)</label>
+  <input id="msgIdInput" type="text" style="width:100%; box-sizing:border-box; padding:6px; font-size:12px; margin-bottom:10px;" />
+
   <button id="saveBtn">Save to SharePoint</button>
   <div id="status"></div>
 
@@ -28,6 +31,18 @@
     const FLOW_URL = "https://default60ad9762f42246538506b9c65091ee.fc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/07/workflows/6fd2c16c39db4d5d8978c2a498c215ab/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=D9XzYeez8_j9xWmBgGPWUMGQViwnjLt7KcILSx-VrFw";
 
     Office.onReady(() => {
+      // Pre-fill the input with the auto-detected ID of the open message,
+      // but leave it editable so you can paste in a different ID for testing.
+      try {
+        const autoId = Office.context.mailbox.convertToRestId(
+          Office.context.mailbox.item.itemId,
+          Office.MailboxEnums.RestVersion.v2_0
+        );
+        document.getElementById("msgIdInput").value = autoId;
+      } catch (e) {
+        document.getElementById("status").textContent = "Could not auto-detect ID: " + e.message;
+      }
+
       document.getElementById("saveBtn").onclick = saveToSharePoint;
     });
 
@@ -37,14 +52,10 @@
       btn.disabled = true;
       status.textContent = "Saving...";
 
-      // Convert whatever ID format this Outlook client gives us into the
-      // REST-style ID your Get email (V2) action expects, so it works the
-      // same whether the lawyer is on web, new Outlook, or classic desktop.
-      const restId = Office.context.mailbox.convertToRestId(
-        Office.context.mailbox.item.itemId,
-        Office.MailboxEnums.RestVersion.v2_0
-      );
- alert(restId);
+      // Use whatever is currently in the text box, whether that's the
+      // auto-filled value or something you pasted in manually.
+      const restId = document.getElementById("msgIdInput").value.trim();
+
       fetch(FLOW_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
