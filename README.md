@@ -9,15 +9,21 @@ Two paths, one destination:
 
 with a duplicate check so re-running never creates a second copy of the same email.  (works by InternetMessageID)
 
+![Plugin](./demo/plugin.png)
+
 ----------
 
 ## SharePoint destination
+
+![Sharepoint](./demo/sharepoint.png)
 
 -   One document library (e.g. "Client Correspondence") with a **single line of text** column, `InternetMessageId`, used purely for the dedupe check.
 
 ----------
 
 ## The manual retry flow
+
+![Flow](./demo/flow.png)
 
 Trigger: **"When a HTTP request is received"** (the built-in `Request` connector — not the Outlook/SharePoint connectors).
 
