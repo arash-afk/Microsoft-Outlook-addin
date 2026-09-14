@@ -2,75 +2,360 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Save to SharePoint</title>
+  <title>Correspondence Archive</title>
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
   <style>
-    body { font-family: 'Segoe UI', sans-serif; padding: 16px; }
-    button {
-      padding: 10px 18px;
-      font-size: 14px;
+    :root {
+      --ink: #1F2328;
+      --ink-muted: #5B6470;
+      --border: #D8DCE1;
+      --primary: #1B2A4A;
+      --primary-hover: #142038;
+      --surface: #FFFFFF;
+      --surface-muted: #F5F6F8;
+      --success: #2E7D32;
+      --success-bg: #EDF7ED;
+      --error: #B3261E;
+      --error-bg: #FBEAE9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', -apple-system, sans-serif;
+      color: var(--ink);
+      margin: 0;
+      padding: 16px;
+      font-size: 13px;
+      background: var(--surface);
+    }
+    h1 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0 0 12px 0;
+    }
+    .email-context {
+      background: var(--surface-muted);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+    }
+    .email-context .subject {
+      font-weight: 600;
+      margin-bottom: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .email-context .sender {
+      color: var(--ink-muted);
+      font-size: 12px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .field { margin-bottom: 16px; }
+    input[type="text"] {
+      width: 100%;
+      padding: 7px 9px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-family: inherit;
+      color: var(--ink);
+    }
+    input[type="text"]:focus {
+      outline: 2px solid var(--primary);
+      outline-offset: 1px;
+      border-color: var(--primary);
+    }
+    .folder-row { display: flex; gap: 6px; }
+    .folder-row input { flex: 1; }
+    .hint {
+      font-size: 11px;
+      color: var(--ink-muted);
+      margin-top: 4px;
+    }
+    .folder-list {
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      margin-top: 4px;
+      max-height: 120px;
+      overflow-y: auto;
+      display: none;
+    }
+    .folder-list.open { display: block; }
+    .folder-option {
+      padding: 7px 9px;
       cursor: pointer;
-      background: #2b579a;
+    }
+    .folder-option:hover, .folder-option.active {
+      background: var(--surface-muted);
+    }
+    .folder-empty {
+      padding: 8px 9px;
+      color: var(--ink-muted);
+    }
+    .folder-empty button {
+      background: none;
+      border: none;
+      color: var(--primary);
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0;
+      font-size: 12px;
+      text-decoration: underline;
+    }
+    .selected-folder {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface-muted);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 7px 9px;
+      margin-top: 4px;
+    }
+    .selected-folder button {
+      background: none;
+      border: none;
+      color: var(--ink-muted);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 0;
+    }
+    button.primary {
+      width: 100%;
+      padding: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--primary);
       color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
     }
-    button:disabled { opacity: 0.6; cursor: default; }
-    #status { margin-top: 14px; font-size: 13px; color: #333; }
+    button.primary:hover:not(:disabled) { background: var(--primary-hover); }
+    button.primary:disabled {
+      background: var(--border);
+      color: var(--ink-muted);
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      display: none;
+    }
+    .status.visible { display: block; }
+    .status.success { background: var(--success-bg); color: var(--success); }
+    .status.error { background: var(--error-bg); color: var(--error); }
+    .status.pending { background: var(--surface-muted); color: var(--ink-muted); }
+    details {
+      margin-top: 20px;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+    }
+    summary {
+      font-size: 12px;
+      color: var(--ink-muted);
+      cursor: pointer;
+    }
+    details[open] summary { margin-bottom: 8px; }
+    details label { font-weight: 400; color: var(--ink-muted); }
   </style>
 </head>
 <body>
-  <label for="msgIdInput" style="display:block; font-size:13px; margin-bottom:4px;">Message ID (editable for testing)</label>
-  <input id="msgIdInput" type="text" style="width:100%; box-sizing:border-box; padding:6px; font-size:12px; margin-bottom:10px;" />
+  <h1>Correspondence Archive</h1>
 
-  <button id="saveBtn">Save to SharePoint</button>
-  <div id="status"></div>
+  <div class="email-context">
+    <div class="subject" id="emailSubject">Loading email...</div>
+    <div class="sender" id="emailSender"></div>
+  </div>
+
+  <div class="field">
+    <label for="folderFilter">Destination folder</label>
+    <input id="folderFilter" type="text" placeholder="Search matter folders..." autocomplete="off" />
+    <div id="folderList" class="folder-list"></div>
+    <div id="selectedFolderDisplay"></div>
+    <div class="hint">Files save to the library root if no folder is chosen.</div>
+  </div>
+
+  <button id="saveBtn" class="primary" disabled>Save email</button>
+  <div id="status" class="status"></div>
+
+  <details>
+    <summary>Advanced</summary>
+    <label for="msgIdInput">Message ID (for troubleshooting)</label>
+    <input id="msgIdInput" type="text" />
+  </details>
 
   <script>
-    // REPLACE this with the HTTP POST URL from your "When a HTTP request is received" trigger
-    const FLOW_URL = "https://defaulta42b9ac47fa241d89839d24966a8f0.d0.environment.api.powerplatform.com/powerautomate/automations/direct/cu/24/workflows/673e2e2d90ef4e8cbc4256dc371b4efc/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VNDxXYaWFc_fxWC-DuJLciNEAZSUpRcOijxHpJTCxVA";
+    // REPLACE these with your three flow URLs
+    const SAVE_FLOW_URL = "https://defaulta42b9ac47fa241d89839d24966a8f0.d0.environment.api.powerplatform.com/powerautomate/automations/direct/cu/24/workflows/673e2e2d90ef4e8cbc4256dc371b4efc/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VNDxXYaWFc_fxWC-DuJLciNEAZSUpRcOijxHpJTCxVA";
+    const LIST_FOLDERS_URL = "https://defaulta42b9ac47fa241d89839d24966a8f0.d0.environment.api.powerplatform.com/powerautomate/automations/direct/cu/19/workflows/9c5e00569e094b7da756ea4562b417a0/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Yg7NjEIH4-kHYrmbzRdp78YX1WZ8WL0e4U_Rmiv7Qk4";
+    const CREATE_FOLDER_URL = "https://defaulta42b9ac47fa241d89839d24966a8f0.d0.environment.api.powerplatform.com/powerautomate/automations/direct/cu/14/workflows/5f219e8ed99943d2b81303042a1b0af2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=GRHRyFTgQ8LHWHZsCilywcLEEP32csuta13gR-ImJig";
+
+    let allFolders = [];
+    let selectedFolder = null; // { Name, Path } or null for library root
 
     Office.onReady(() => {
-      // Pre-fill the input with the auto-detected ID of the open message,
-      // but leave it editable so you can paste in a different ID for testing.
+      // Show what's actually open, so the lawyer can confirm before saving.
+      const item = Office.context.mailbox.item;
+      document.getElementById("emailSubject").textContent = item.subject || "(no subject)";
+      document.getElementById("emailSender").textContent =
+        (item.from && item.from.displayName) ? "From " + item.from.displayName : "";
+
       try {
-        const autoId = Office.context.mailbox.convertToRestId(
-          Office.context.mailbox.item.itemId,
-          Office.MailboxEnums.RestVersion.v2_0
-        );
+        const autoId = Office.context.mailbox.convertToRestId(item.itemId, Office.MailboxEnums.RestVersion.v2_0);
         document.getElementById("msgIdInput").value = autoId;
       } catch (e) {
-        document.getElementById("status").textContent = "Could not auto-detect ID: " + e.message;
+        showStatus("error", "Could not read this message's ID. Try reopening the email.");
       }
 
+      loadFolders();
+
       document.getElementById("saveBtn").onclick = saveToSharePoint;
+      document.getElementById("folderFilter").oninput = renderFolderList;
+      document.getElementById("folderFilter").onfocus = renderFolderList;
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".field")) {
+          document.getElementById("folderList").classList.remove("open");
+        }
+      });
     });
+
+    function loadFolders() {
+      fetch(LIST_FOLDERS_URL, { method: "POST" })
+        .then((res) => res.json())
+        .then((folders) => {
+          allFolders = folders || [];
+        })
+        .catch(() => {
+          document.getElementById("folderFilter").placeholder = "Couldn't load folders";
+        });
+    }
+
+    function renderFolderList() {
+      const query = document.getElementById("folderFilter").value.trim().toLowerCase();
+      const listEl = document.getElementById("folderList");
+      const matches = allFolders.filter((f) => f.Name.toLowerCase().includes(query));
+
+      listEl.innerHTML = "";
+
+      matches.forEach((f) => {
+        const opt = document.createElement("div");
+        opt.className = "folder-option";
+        opt.textContent = f.Name;
+        opt.onclick = () => selectFolder(f);
+        listEl.appendChild(opt);
+      });
+
+      if (query && matches.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "folder-empty";
+        empty.innerHTML = 'No matching folder. <button type="button">Create "' + escapeHtml(query) + '"</button>';
+        empty.querySelector("button").onclick = () => createFolder(query);
+        listEl.appendChild(empty);
+      }
+
+      listEl.classList.add("open");
+    }
+
+    function selectFolder(folder) {
+      selectedFolder = folder;
+      document.getElementById("folderFilter").value = "";
+      document.getElementById("folderList").classList.remove("open");
+      renderSelectedFolder();
+      updateSaveButtonState();
+    }
+
+    function renderSelectedFolder() {
+      const el = document.getElementById("selectedFolderDisplay");
+      if (!selectedFolder) {
+        el.innerHTML = "";
+        return;
+      }
+      el.innerHTML = '<div class="selected-folder"><span>' + escapeHtml(selectedFolder.Name) +
+        '</span><button type="button" id="clearFolderBtn">Change</button></div>';
+      document.getElementById("clearFolderBtn").onclick = () => {
+        selectedFolder = null;
+        renderSelectedFolder();
+        updateSaveButtonState();
+      };
+    }
+
+    function updateSaveButtonState() {
+      // Require an explicit destination choice rather than defaulting silently
+      // to the library root -- keeps filing intentional as folder volume grows.
+      document.getElementById("saveBtn").disabled = !selectedFolder;
+      document.getElementById("saveBtn").textContent = selectedFolder
+        ? "Save to " + selectedFolder.Name
+        : "Choose a folder to continue";
+    }
+
+    function createFolder(name) {
+      showStatus("pending", "Creating folder...");
+      fetch(CREATE_FOLDER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folderName: name })
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          const folder = { Name: name, Path: data.path };
+          allFolders.push(folder);
+          selectFolder(folder);
+          hideStatus();
+        })
+        .catch(() => {
+          showStatus("error", "Couldn't create that folder. Check your connection and try again.");
+        });
+    }
 
     function saveToSharePoint() {
       const btn = document.getElementById("saveBtn");
-      const status = document.getElementById("status");
       btn.disabled = true;
-      status.textContent = "Saving...";
+      showStatus("pending", "Saving...");
 
-      // Use whatever is currently in the text box, whether that's the
-      // auto-filled value or something you pasted in manually.
       const restId = document.getElementById("msgIdInput").value.trim();
+      const mailboxAddress = Office.context.mailbox.userProfile.emailAddress;
+      const folderPath = selectedFolder ? selectedFolder.Path : "";
 
-      fetch(FLOW_URL, {
+      fetch(SAVE_FLOW_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messageId: restId })
+        body: JSON.stringify({ messageId: restId, mailboxAddress: mailboxAddress, folderPath: folderPath })
       })
         .then((res) => res.json().catch(() => ({})))
         .then((data) => {
-          status.textContent = "Done: " + (data.result || "request sent, check SharePoint");
+          showStatus("success", "Saved to " + (selectedFolder ? selectedFolder.Name : "the library root") + ".");
         })
-        .catch((err) => {
-          status.textContent = "Error: " + err.message;
+        .catch(() => {
+          showStatus("error", "Couldn't reach SharePoint. Check your connection and try again.");
         })
         .finally(() => {
-          btn.disabled = false;
+          updateSaveButtonState();
         });
+    }
+
+    function showStatus(kind, message) {
+      const el = document.getElementById("status");
+      el.className = "status visible " + kind;
+      el.textContent = message;
+    }
+
+    function hideStatus() {
+      const el = document.getElementById("status");
+      el.className = "status";
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
     }
   </script>
 </body>
