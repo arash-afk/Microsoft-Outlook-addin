@@ -198,6 +198,7 @@
     const LIST_FOLDERS_URL = "https://defaulta42b9ac47fa241d89839d24966a8f0.d0.environment.api.powerplatform.com/powerautomate/automations/direct/cu/19/workflows/9c5e00569e094b7da756ea4562b417a0/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Yg7NjEIH4-kHYrmbzRdp78YX1WZ8WL0e4U_Rmiv7Qk4";
     const CREATE_FOLDER_URL = "https://defaulta42b9ac47fa241d89839d24966a8f0.d0.environment.api.powerplatform.com/powerautomate/automations/direct/cu/14/workflows/5f219e8ed99943d2b81303042a1b0af2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=GRHRyFTgQ8LHWHZsCilywcLEEP32csuta13gR-ImJig";
 
+
     let allFolders = [];
     let selectedFolder = null; // { Name, Path } or null for library root
 
@@ -310,8 +311,8 @@
           selectFolder(folder);
           hideStatus();
         })
-        .catch(() => {
-          showStatus("error", "Couldn't create that folder. Check your connection and try again.");
+        .catch((err) => {
+          showStatus("error", "Couldn't create that folder: " + err.message);
         });
     }
 
