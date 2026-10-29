@@ -2,6 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Correspondence Archive</title>
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
   <style>
@@ -55,8 +56,22 @@
       font-weight: 600;
       margin-bottom: 6px;
     }
-    .field { margin-bottom: 16px; }
-    input[type="text"] {
+    .step {
+      display: inline-block;
+      min-width: 18px;
+      height: 18px;
+      line-height: 18px;
+      text-align: center;
+      border-radius: 9px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 11px;
+      margin-right: 6px;
+    }
+    .field { margin-bottom: 16px; position: relative; }
+    .field.disabled label { color: var(--ink-muted); }
+    .field.disabled .step { background: var(--border); color: var(--ink-muted); }
+    input[type="text"], select {
       width: 100%;
       padding: 7px 9px;
       font-size: 13px;
@@ -64,14 +79,17 @@
       border-radius: 5px;
       font-family: inherit;
       color: var(--ink);
+      background: var(--surface);
     }
-    input[type="text"]:focus {
+    input[type="text"]:disabled {
+      background: var(--surface-muted);
+      cursor: not-allowed;
+    }
+    input[type="text"]:focus, select:focus {
       outline: 2px solid var(--primary);
       outline-offset: 1px;
       border-color: var(--primary);
     }
-    .folder-row { display: flex; gap: 6px; }
-    .folder-row input { flex: 1; }
     .hint {
       font-size: 11px;
       color: var(--ink-muted);
@@ -81,7 +99,7 @@
       border: 1px solid var(--border);
       border-radius: 5px;
       margin-top: 4px;
-      max-height: 120px;
+      max-height: 160px;
       overflow-y: auto;
       display: none;
     }
@@ -97,7 +115,7 @@
       padding: 8px 9px;
       color: var(--ink-muted);
     }
-    .folder-empty button {
+    .folder-empty button, .folder-create button {
       background: none;
       border: none;
       color: var(--primary);
@@ -106,16 +124,27 @@
       padding: 0;
       font-size: 12px;
       text-decoration: underline;
+      font-family: inherit;
+    }
+    .folder-create {
+      padding: 7px 9px;
+      border-top: 1px solid var(--border);
     }
     .selected-folder {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
       background: var(--surface-muted);
       border: 1px solid var(--border);
       border-radius: 5px;
       padding: 7px 9px;
       margin-top: 4px;
+    }
+    .selected-folder span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .selected-folder button {
       background: none;
@@ -124,6 +153,8 @@
       cursor: pointer;
       font-size: 12px;
       padding: 0;
+      flex-shrink: 0;
+      font-family: inherit;
     }
     button.primary {
       width: 100%;
@@ -135,6 +166,10 @@
       color: white;
       border: none;
       border-radius: 6px;
+      font-family: inherit;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     button.primary:hover:not(:disabled) { background: var(--primary-hover); }
     button.primary:disabled {
@@ -175,16 +210,21 @@
     <div class="sender" id="emailSender"></div>
   </div>
 
-  <div class="field">
-    <label for="folderFilter">Destination folder</label>
-    <input id="folderFilter" type="text" placeholder="Search matter folders..." autocomplete="off" />
-    <div id="folderList" class="folder-list"></div>
-    <div id="selectedFolderDisplay"></div>
-    <div class="hint">Files save to the library root if no folder is chosen.</div>
+  <div class="field" id="siteField">
+    <label for="siteSelect"><span class="step">1</span>Site</label>
+    <select id="siteSelect"></select>
   </div>
 
-  <button id="saveBtn" class="primary" disabled>Save email</button>
-  <div id="status" class="status"></div>
+  <div class="field disabled" id="folderField">
+    <label for="folderFilter"><span class="step">2</span>Folder</label>
+    <input id="folderFilter" type="text" placeholder="Choose a site first" autocomplete="off" disabled />
+    <div id="folderList" class="folder-list"></div>
+    <div id="selectedFolderDisplay"></div>
+    <div class="hint">The email and each attachment are saved as separate files in this folder.</div>
+  </div>
+
+  <button id="saveBtn" class="primary" disabled>Choose a site to continue</button>
+  <div id="status" class="status" role="status"></div>
 
   <details>
     <summary>Advanced</summary>
@@ -193,17 +233,58 @@
   </details>
 
   <script>
-    // REPLACE these with your three flow URLs
+    // ------------------------------------------------------------------
+    // 1. FLOW URLS -- paste the HTTP trigger URL of each flow here.
+    // ------------------------------------------------------------------
     const SAVE_FLOW_URL = "https://defaulta42b9ac47fa241d89839d24966a8f0.d0.environment.api.powerplatform.com/powerautomate/automations/direct/cu/24/workflows/673e2e2d90ef4e8cbc4256dc371b4efc/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=VNDxXYaWFc_fxWC-DuJLciNEAZSUpRcOijxHpJTCxVA";
     const LIST_FOLDERS_URL = "https://defaulta42b9ac47fa241d89839d24966a8f0.d0.environment.api.powerplatform.com/powerautomate/automations/direct/cu/19/workflows/9c5e00569e094b7da756ea4562b417a0/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Yg7NjEIH4-kHYrmbzRdp78YX1WZ8WL0e4U_Rmiv7Qk4";
     const CREATE_FOLDER_URL = "https://defaulta42b9ac47fa241d89839d24966a8f0.d0.environment.api.powerplatform.com/powerautomate/automations/direct/cu/14/workflows/5f219e8ed99943d2b81303042a1b0af2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=GRHRyFTgQ8LHWHZsCilywcLEEP32csuta13gR-ImJig";
 
+    // ------------------------------------------------------------------
+    // 2. SITES -- the list shown in step 1 of the task pane (up to 20+).
+    //    name    : what lawyers see in the dropdown
+    //    siteUrl : full site address, no trailing slash
+    //    library : the document library's URL name, exactly as it appears
+    //              in the browser address bar after the site address
+    //              (e.g. "Client Correspondence", or "Shared Documents"
+    //              for the default "Documents" library)
+    //    Every library listed here needs the InternetMessageId column
+    //    (see UPGRADE-GUIDE.md, part B).
+    // ------------------------------------------------------------------
+    const SITES = [
+      { name: "Neota", siteUrl: "https://cookiepot.sharepoint.com/sites/Neota", library: "Client Correspondence" },
+      // { name: "Site 02", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE02", library: "Client Correspondence" },
+      // { name: "Site 03", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE03", library: "Client Correspondence" },
+      // { name: "Site 04", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE04", library: "Client Correspondence" },
+      // { name: "Site 05", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE05", library: "Client Correspondence" },
+      // { name: "Site 06", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE06", library: "Client Correspondence" },
+      // { name: "Site 07", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE07", library: "Client Correspondence" },
+      // { name: "Site 08", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE08", library: "Client Correspondence" },
+      // { name: "Site 09", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE09", library: "Client Correspondence" },
+      // { name: "Site 10", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE10", library: "Client Correspondence" },
+      // { name: "Site 11", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE11", library: "Client Correspondence" },
+      // { name: "Site 12", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE12", library: "Client Correspondence" },
+      // { name: "Site 13", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE13", library: "Client Correspondence" },
+      // { name: "Site 14", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE14", library: "Client Correspondence" },
+      // { name: "Site 15", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE15", library: "Client Correspondence" },
+      // { name: "Site 16", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE16", library: "Client Correspondence" },
+      // { name: "Site 17", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE17", library: "Client Correspondence" },
+      // { name: "Site 18", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE18", library: "Client Correspondence" },
+      // { name: "Site 19", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE19", library: "Client Correspondence" },
+      // { name: "Site 20", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE20", library: "Client Correspondence" },
+    ];
 
-    let allFolders = [];
-    let selectedFolder = null; // { Name, Path } or null for library root
+    // Characters SharePoint rejects in names, plus # and % which break the REST call that creates folders.
+    const INVALID_FOLDER_CHARS = /["*:<>?\/\\|#%]/;
+    const LAST_SITE_KEY = "archive.lastSiteUrl";
+
+    let selectedSite = null;     // one entry of SITES
+    let allFolders = [];         // [{ Name, Path }] for the selected site
+    let selectedFolder = null;   // { Name, Path }
+    let folderLoadToken = 0;     // ignores stale responses if the site changes mid-load
+    const folderCache = {};      // siteUrl -> folders, so switching back is instant
 
     Office.onReady(() => {
-      // Show what's actually open, so the lawyer can confirm before saving.
       const item = Office.context.mailbox.item;
       document.getElementById("emailSubject").textContent = item.subject || "(no subject)";
       document.getElementById("emailSender").textContent =
@@ -216,33 +297,116 @@
         showStatus("error", "Could not read this message's ID. Try reopening the email.");
       }
 
-      loadFolders();
+      renderSiteOptions();
 
+      document.getElementById("siteSelect").onchange = onSiteChange;
       document.getElementById("saveBtn").onclick = saveToSharePoint;
       document.getElementById("folderFilter").oninput = renderFolderList;
       document.getElementById("folderFilter").onfocus = renderFolderList;
+      document.getElementById("folderFilter").onkeydown = (e) => {
+        if (e.key === "Escape") document.getElementById("folderList").classList.remove("open");
+      };
       document.addEventListener("click", (e) => {
-        if (!e.target.closest(".field")) {
+        if (!e.target.closest("#folderField")) {
           document.getElementById("folderList").classList.remove("open");
         }
       });
+
+      // Reopen on the site this person used last time.
+      const lastSite = readLastSite();
+      const match = SITES.find((s) => s.siteUrl === lastSite);
+      if (match) {
+        document.getElementById("siteSelect").value = match.siteUrl;
+        onSiteChange();
+      }
     });
 
-    function loadFolders() {
-      fetch(LIST_FOLDERS_URL, { method: "POST" })
-        .then((res) => res.json())
+    // ---------------- Step 1: site ----------------
+
+    function renderSiteOptions() {
+      const select = document.getElementById("siteSelect");
+      select.innerHTML = "";
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Select a site...";
+      select.appendChild(placeholder);
+
+      SITES.slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach((s) => {
+          const opt = document.createElement("option");
+          opt.value = s.siteUrl;
+          opt.textContent = s.name;
+          select.appendChild(opt);
+        });
+    }
+
+    function onSiteChange() {
+      const url = document.getElementById("siteSelect").value;
+      selectedSite = SITES.find((s) => s.siteUrl === url) || null;
+      selectedFolder = null;
+      allFolders = [];
+      renderSelectedFolder();
+      hideStatus();
+
+      const filter = document.getElementById("folderFilter");
+      const field = document.getElementById("folderField");
+      filter.value = "";
+      document.getElementById("folderList").classList.remove("open");
+
+      if (!selectedSite) {
+        filter.disabled = true;
+        filter.placeholder = "Choose a site first";
+        field.classList.add("disabled");
+        updateSaveButtonState();
+        return;
+      }
+
+      writeLastSite(selectedSite.siteUrl);
+      field.classList.remove("disabled");
+      loadFolders(selectedSite);
+      updateSaveButtonState();
+    }
+
+    // ---------------- Step 2: folder ----------------
+
+    function loadFolders(site) {
+      const filter = document.getElementById("folderFilter");
+
+      if (folderCache[site.siteUrl]) {
+        allFolders = folderCache[site.siteUrl];
+        filter.disabled = false;
+        filter.placeholder = "Search folders in " + site.name + "...";
+        return;
+      }
+
+      const token = ++folderLoadToken;
+      filter.disabled = true;
+      filter.placeholder = "Loading folders...";
+
+      postJson(LIST_FOLDERS_URL, { siteUrl: site.siteUrl, library: site.library })
         .then((folders) => {
-          allFolders = folders || [];
+          if (token !== folderLoadToken) return; // site changed while loading
+          allFolders = (Array.isArray(folders) ? folders : [])
+            .sort((a, b) => a.Name.localeCompare(b.Name));
+          folderCache[site.siteUrl] = allFolders;
+          filter.disabled = false;
+          filter.placeholder = "Search folders in " + site.name + "...";
         })
         .catch(() => {
-          document.getElementById("folderFilter").placeholder = "Couldn't load folders";
+          if (token !== folderLoadToken) return;
+          filter.disabled = false;
+          filter.placeholder = "Couldn't load folders - type to create one";
         });
     }
 
     function renderFolderList() {
-      const query = document.getElementById("folderFilter").value.trim().toLowerCase();
+      if (!selectedSite) return;
+      const raw = document.getElementById("folderFilter").value.trim();
+      const query = raw.toLowerCase();
       const listEl = document.getElementById("folderList");
       const matches = allFolders.filter((f) => f.Name.toLowerCase().includes(query));
+      const exact = allFolders.some((f) => f.Name.toLowerCase() === query);
 
       listEl.innerHTML = "";
 
@@ -254,11 +418,20 @@
         listEl.appendChild(opt);
       });
 
-      if (query && matches.length === 0) {
+      if (raw && !exact) {
+        const row = document.createElement("div");
+        row.className = matches.length ? "folder-create" : "folder-empty";
+        const prefix = matches.length ? "" : "No matching folder. ";
+        row.innerHTML = prefix + '<button type="button">Create "' + escapeHtml(raw) + '" in ' +
+          escapeHtml(selectedSite.name) + '</button>';
+        row.querySelector("button").onclick = () => createFolder(raw);
+        listEl.appendChild(row);
+      }
+
+      if (!raw && matches.length === 0) {
         const empty = document.createElement("div");
         empty.className = "folder-empty";
-        empty.innerHTML = 'No matching folder. <button type="button">Create "' + escapeHtml(query) + '"</button>';
-        empty.querySelector("button").onclick = () => createFolder(query);
+        empty.textContent = "No folders yet. Type a name to create one.";
         listEl.appendChild(empty);
       }
 
@@ -285,30 +458,41 @@
         selectedFolder = null;
         renderSelectedFolder();
         updateSaveButtonState();
+        document.getElementById("folderFilter").focus();
       };
     }
 
-    function updateSaveButtonState() {
-      // Require an explicit destination choice rather than defaulting silently
-      // to the library root -- keeps filing intentional as folder volume grows.
-      document.getElementById("saveBtn").disabled = !selectedFolder;
-      document.getElementById("saveBtn").textContent = selectedFolder
-        ? "Save to " + selectedFolder.Name
-        : "Choose a folder to continue";
+    function validateFolderName(name) {
+      if (!name) return "Enter a folder name.";
+      if (INVALID_FOLDER_CHARS.test(name)) return 'Folder names can\'t contain " * : < > ? / \\ | # %';
+      if (/\.$/.test(name)) return "Folder names can't end with a full stop.";
+      if (name.length > 120) return "Keep folder names under 120 characters.";
+      return null;
     }
 
     function createFolder(name) {
-      showStatus("pending", "Creating folder...");
-      fetch(CREATE_FOLDER_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ folderName: name })
-      })
-        .then((res) => res.json())
+      const site = selectedSite;
+      const problem = validateFolderName(name);
+      if (problem) {
+        showStatus("error", problem);
+        return;
+      }
+
+      showStatus("pending", "Creating folder in " + site.name + "...");
+      postJson(CREATE_FOLDER_URL, { siteUrl: site.siteUrl, library: site.library, folderName: name })
         .then((data) => {
-          const folder = { Name: name, Path: data.path };
-          allFolders.push(folder);
-          selectFolder(folder);
+          const folder = { Name: (data && data.Name) || name, Path: data && data.Path };
+          if (!folder.Path) throw new Error("no path returned");
+          const list = folderCache[site.siteUrl] || allFolders;
+          if (!list.some((f) => f.Path === folder.Path)) {
+            list.push(folder);
+            list.sort((a, b) => a.Name.localeCompare(b.Name));
+          }
+          folderCache[site.siteUrl] = list;
+          if (selectedSite === site) {
+            allFolders = list;
+            selectFolder(folder);
+          }
           hideStatus();
         })
         .catch((err) => {
@@ -316,30 +500,84 @@
         });
     }
 
+    function updateSaveButtonState() {
+      const btn = document.getElementById("saveBtn");
+      btn.disabled = !(selectedSite && selectedFolder);
+      if (!selectedSite) btn.textContent = "Choose a site to continue";
+      else if (!selectedFolder) btn.textContent = "Choose a folder to continue";
+      else btn.textContent = "Save to " + selectedSite.name + " › " + selectedFolder.Name;
+    }
+
+    // ---------------- Save ----------------
+
     function saveToSharePoint() {
       const btn = document.getElementById("saveBtn");
       btn.disabled = true;
-      showStatus("pending", "Saving...");
+      const site = selectedSite;
+      const folder = selectedFolder;
+      const where = site.name + " › " + folder.Name;
+      showStatus("pending", "Saving email and attachments...");
 
-      const restId = document.getElementById("msgIdInput").value.trim();
-      const mailboxAddress = Office.context.mailbox.userProfile.emailAddress;
-      const folderPath = selectedFolder ? selectedFolder.Path : "";
-
-      fetch(SAVE_FLOW_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messageId: restId, mailboxAddress: mailboxAddress, folderPath: folderPath })
+      postJson(SAVE_FLOW_URL, {
+        messageId: document.getElementById("msgIdInput").value.trim(),
+        mailboxAddress: Office.context.mailbox.userProfile.emailAddress,
+        siteUrl: site.siteUrl,
+        library: site.library,
+        folderPath: folder.Path
       })
-        .then((res) => res.json().catch(() => ({})))
         .then((data) => {
-          showStatus("success", "Saved to " + (selectedFolder ? selectedFolder.Name : "the library root") + ".");
+          data = data || {};
+          if (data.result === "duplicate") {
+            showStatus("success", "Already filed - this email was saved to SharePoint before, so nothing new was added.");
+            return;
+          }
+          const n = Number(data.attachments) || 0;
+          const extra = n === 0 ? "" : n === 1 ? " with 1 attachment" : " with " + n + " attachments";
+          showStatus("success", "Saved to " + where + extra + ".");
         })
-        .catch(() => {
-          showStatus("error", "Couldn't reach SharePoint. Check your connection and try again.");
+        .catch((err) => {
+          if (err.status === 502 || err.status === 504) {
+            showStatus("pending", "Still saving in the background (large attachments). Check " + where + " in a minute.");
+          } else if (!err.status) {
+            showStatus("error", "Couldn't reach SharePoint. Check your connection and try again.");
+          } else {
+            showStatus("error", "Couldn't save: " + err.message);
+          }
         })
         .finally(() => {
           updateSaveButtonState();
         });
+    }
+
+    // ---------------- Helpers ----------------
+
+    function postJson(url, body) {
+      return fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body || {})
+      }).then((res) =>
+        res.text().then((text) => {
+          let data = null;
+          try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+          if (!res.ok) {
+            const msg = (data && (data.message || (data.error && data.error.message))) ||
+              "SharePoint returned an error (" + res.status + ").";
+            const err = new Error(msg);
+            err.status = res.status;
+            throw err;
+          }
+          return data;
+        })
+      );
+    }
+
+    function readLastSite() {
+      try { return window.localStorage.getItem(LAST_SITE_KEY); } catch (e) { return null; }
+    }
+
+    function writeLastSite(url) {
+      try { window.localStorage.setItem(LAST_SITE_KEY, url); } catch (e) { /* storage blocked */ }
     }
 
     function showStatus(kind, message) {
@@ -349,8 +587,7 @@
     }
 
     function hideStatus() {
-      const el = document.getElementById("status");
-      el.className = "status";
+      document.getElementById("status").className = "status";
     }
 
     function escapeHtml(str) {
