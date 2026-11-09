@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Correspondence Archive</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    :root {
+      --ink: #1F2328;
+      --ink-muted: #5B6470;
+      --border: #D8DCE1;
+      --primary: #1B2A4A;
+      --primary-hover: #142038;
+      --surface: #FFFFFF;
+      --surface-muted: #F5F6F8;
+      --success: #2E7D32;
+      --success-bg: #EDF7ED;
+      --error: #B3261E;
+      --error-bg: #FBEAE9;
+      --star: #B7791F;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', -apple-system, sans-serif;
+      color: var(--ink);
+      margin: 0;
+      padding: 16px;
+      font-size: 13px;
+      background: var(--surface);
+    }
+    h1 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0 0 12px 0;
+    }
+    h2 {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink-muted);
+      margin: 0 0 6px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .email-context {
+      background: var(--surface-muted);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+    }
+    .email-context .subject {
+      font-weight: 600;
+      margin-bottom: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .email-context .sender {
+      color: var(--ink-muted);
+      font-size: 12px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .step {
+      display: inline-block;
+      min-width: 18px;
+      height: 18px;
+      line-height: 18px;
+      text-align: center;
+      border-radius: 9px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 11px;
+      margin-right: 6px;
+    }
+    .field { margin-bottom: 16px; position: relative; }
+    .field.disabled label { color: var(--ink-muted); }
+    .field.disabled .step { background: var(--border); color: var(--ink-muted); }
+    input[type="text"], select {
+      width: 100%;
+      padding: 7px 9px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-family: inherit;
+      color: var(--ink);
+      background: var(--surface);
+    }
+    input[type="text"]:disabled, select:disabled {
+      background: var(--surface-muted);
+      cursor: not-allowed;
+    }
+    input[type="text"]:focus, select:focus, button:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 1px;
+    }
+    .row { display: flex; gap: 6px; align-items: center; }
+    .row select { flex: 1; min-width: 0; }
+    .hint {
+      font-size: 11px;
+      color: var(--ink-muted);
+      margin-top: 4px;
+    }
+
+    /* Favourite star toggle */
+    button.star {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--surface);
+      color: var(--ink-muted);
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+    }
+    button.star[aria-pressed="true"] { color: var(--star); }
+    button.star:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.star.small {
+      width: auto;
+      height: auto;
+      border: none;
+      background: none;
+      font-size: 15px;
+      padding: 0 2px;
+    }
+
+    /* Favourites list */
+    .favourites { margin-bottom: 16px; }
+    .fav-list { display: flex; flex-direction: column; gap: 4px; }
+    .fav {
+      display: flex;
+      align-items: stretch;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .fav button.fav-go {
+      flex: 1;
+      min-width: 0;
+      text-align: left;
+      border: none;
+      background: none;
+      padding: 7px 9px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--ink);
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .fav button.fav-go:hover:not(:disabled) { background: var(--surface-muted); }
+    .fav button.fav-go:disabled { color: var(--ink-muted); cursor: default; }
+    .fav .fav-icon { color: var(--star); margin-right: 6px; }
+    .fav .fav-site { color: var(--ink-muted); }
+    .fav .fav-note { color: var(--ink-muted); font-size: 11px; margin-left: 4px; }
+    .fav button.fav-remove {
+      border: none;
+      border-left: 1px solid var(--border);
+      background: none;
+      color: var(--ink-muted);
+      width: 32px;
+      font-size: 15px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .fav button.fav-remove:hover { background: var(--error-bg); color: var(--error); }
+    .fav-empty { font-size: 12px; color: var(--ink-muted); }
+
+    .folder-list {
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      margin-top: 4px;
+      max-height: 160px;
+      overflow-y: auto;
+      display: none;
+    }
+    .folder-list.open { display: block; }
+    .folder-option {
+      padding: 7px 9px;
+      cursor: pointer;
+    }
+    .folder-option:hover, .folder-option.active {
+      background: var(--surface-muted);
+    }
+    .folder-empty {
+      padding: 8px 9px;
+      color: var(--ink-muted);
+    }
+    .folder-empty button, .folder-create button, .link-btn {
+      background: none;
+      border: none;
+      color: var(--primary);
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0;
+      font-size: 12px;
+      text-decoration: underline;
+      font-family: inherit;
+    }
+    .folder-create {
+      padding: 7px 9px;
+      border-top: 1px solid var(--border);
+    }
+    .selected-folder {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface-muted);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 7px 9px;
+      margin-top: 4px;
+    }
+    .selected-folder span {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .selected-folder button.change {
+      background: none;
+      border: none;
+      color: var(--ink-muted);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 0;
+      flex-shrink: 0;
+      font-family: inherit;
+    }
+    button.primary {
+      width: 100%;
+      padding: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    button.primary:hover:not(:disabled) { background: var(--primary-hover); }
+    button.primary:disabled {
+      background: var(--border);
+      color: var(--ink-muted);
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      display: none;
+    }
+    .status.visible { display: block; }
+    .status.success { background: var(--success-bg); color: var(--success); }
+    .status.error { background: var(--error-bg); color: var(--error); }
+    .status.pending { background: var(--surface-muted); color: var(--ink-muted); }
+    details {
+      margin-top: 20px;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+    }
+    summary {
+      font-size: 12px;
+      color: var(--ink-muted);
+      cursor: pointer;
+    }
+    details[open] summary { margin-bottom: 8px; }
+    details label { font-weight: 400; color: var(--ink-muted); }
+    details .link-btn { margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Correspondence Archive</h1>
+
+  <div class="email-context">
+    <div class="subject" id="emailSubject">Loading email...</div>
+    <div class="sender" id="emailSender"></div>
+  </div>
+
+  <section class="favourites" id="favSection" hidden>
+    <h2>Favourites</h2>
+    <div class="fav-list" id="favList"></div>
+  </section>
+
+  <div class="field" id="siteField">
+    <label for="siteSelect"><span class="step">1</span>Site</label>
+    <div class="row">
+      <select id="siteSelect" disabled><option value="">Signing you in...</option></select>
+      <button type="button" class="star" id="siteStar" aria-pressed="false" disabled
+              title="Add this site to favourites" aria-label="Add this site to favourites">&#9734;</button>
+    </div>
+  </div>
+
+  <div class="field disabled" id="folderField">
+    <label for="folderFilter"><span class="step">2</span>Folder</label>
+    <input id="folderFilter" type="text" placeholder="Choose a site first" autocomplete="off" disabled />
+    <div id="folderList" class="folder-list"></div>
+    <div id="selectedFolderDisplay"></div>
+    <div class="hint">The email and each attachment are saved as separate files in this folder.</div>
+  </div>
+
+  <button id="saveBtn" class="primary" disabled>Choose a site to continue</button>
+  <div id="status" class="status" role="status"></div>
+
+  <details>
+    <summary>Advanced</summary>
+    <label for="msgIdInput">Message ID (for troubleshooting)</label>
+    <input id="msgIdInput" type="text" />
+    <button type="button" class="link-btn" id="refreshAccessBtn">Refresh my site access</button>
+    <div class="hint" id="signedInAs"></div>
+  </details>
+
+  <script src="lib/msal-browser-5.25.1.min.js"></script>
+  <script>
+    // ==================================================================
+    // 1. SIGN-IN -- from the app registration in Microsoft Entra
+    //    (docs/option-c-graph.md, part A). These are identifiers, not secrets.
+    //    OPTION C (sign-in + Microsoft Graph). This is the recommended version.
+    // ==================================================================
+    const CLIENT_ID = "a7a574f9-fd20-4efa-8407-5f23ee689391";
+    const TENANT_ID = "a42b9ac4-7fa2-41d8-9839-d24966a8f0d0";
+
+    // ==================================================================
+    // 2. SITES -- the full list. Each person only sees the sites they
+    //    can open in SharePoint (SharePoint decides, not this list).
+    //    name    : what lawyers see in the dropdown
+    //    siteUrl : full site address, no trailing slash
+    //    library : the document library's URL name, exactly as it appears
+    //              in the browser address bar after the site address
+    //              (e.g. "Client Correspondence", or "Shared Documents"
+    //              for the default "Documents" library)
+    //    Every library needs the columns in README.md, "SharePoint setup".
+    // ==================================================================
+    const SITES = [
+      { name: "Neota", siteUrl: "https://cookiepot.sharepoint.com/sites/Neota", library: "Client Correspondence" },
+      { name: "Site 02", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE02", library: "Client Correspondence" },
+      // { name: "Site 03", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE03", library: "Client Correspondence" },
+      // { name: "Site 04", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE04", library: "Client Correspondence" },
+      // { name: "Site 05", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE05", library: "Client Correspondence" },
+      // { name: "Site 06", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE06", library: "Client Correspondence" },
+      // { name: "Site 07", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE07", library: "Client Correspondence" },
+      // { name: "Site 08", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE08", library: "Client Correspondence" },
+      // { name: "Site 09", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE09", library: "Client Correspondence" },
+      // { name: "Site 10", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE10", library: "Client Correspondence" },
+      // { name: "Site 11", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE11", library: "Client Correspondence" },
+      // { name: "Site 12", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE12", library: "Client Correspondence" },
+      // { name: "Site 13", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE13", library: "Client Correspondence" },
+      // { name: "Site 14", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE14", library: "Client Correspondence" },
+      // { name: "Site 15", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE15", library: "Client Correspondence" },
+      // { name: "Site 16", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE16", library: "Client Correspondence" },
+      // { name: "Site 17", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE17", library: "Client Correspondence" },
+      // { name: "Site 18", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE18", library: "Client Correspondence" },
+      // { name: "Site 19", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE19", library: "Client Correspondence" },
+      // { name: "Site 20", siteUrl: "https://cookiepot.sharepoint.com/sites/SITE20", library: "Client Correspondence" },
+    ];
+
+    // ==================================================================
+    // 3. OTHER SETTINGS
+    // ==================================================================
+    const MAX_FAVOURITES = 5;
+    const SITE_ACCESS_CACHE_HOURS = 12;           // how long this computer remembers the site list
+    const FILE_TIME_ZONE = "Australia/Sydney";    // for the date at the start of file names
+    const GRAPH = "https://graph.microsoft.com/v1.0";
+    const SCOPES = ["User.Read", "Mail.Read", "Sites.ReadWrite.All"];
+
+    const INVALID_FOLDER_CHARS = /["*:<>?\/\\|#%]/;
+    const LAST_SITE_KEY = "archive.lastSiteUrl";
+    const SITE_ACCESS_KEY = "archive.siteAccess.v4";
+    const FAVOURITES_KEY = "favourites"; // stored in the user's mailbox (Office roaming settings)
+    const SIMPLE_UPLOAD_MAX = 4 * 1024 * 1024;     // bigger files go through an upload session
+    const UPLOAD_CHUNK = 320 * 1024 * 12;          // 3.75 MB, a multiple of 320 KB as Graph requires
+
+    let msalApp = null;
+    let userEmail = "";
+    let allowedSites = [];       // [{ ...SITES entry, siteId, driveId }]
+    let accessChecked = false;
+    let selectedSite = null;
+    let allFolders = [];         // [{ Name, Path, Id }]
+    let selectedFolder = null;
+    let folderLoadToken = 0;
+    const folderCache = {};      // siteUrl -> folders
+    const listIdCache = {};      // driveId -> list id (for the duplicate check)
+    let favourites = [];         // [{ type: "site"|"folder", siteUrl, siteName, folderName?, folderPath? }]
+    let favouritesAvailable = true;
+
+    Office.onReady(() => {
+      const item = Office.context.mailbox.item;
+      document.getElementById("emailSubject").textContent = item.subject || "(no subject)";
+      document.getElementById("emailSender").textContent =
+        (item.from && item.from.displayName) ? "From " + item.from.displayName : "";
+      userEmail = (Office.context.mailbox.userProfile.emailAddress || "").trim().toLowerCase();
+
+      try {
+        const autoId = Office.context.mailbox.convertToRestId(item.itemId, Office.MailboxEnums.RestVersion.v2_0);
+        document.getElementById("msgIdInput").value = autoId;
+      } catch (e) {
+        showStatus("error", "Could not read this message's ID. Try reopening the email.");
+      }
+
+      document.getElementById("siteSelect").onchange = () => { onSiteChange().catch(() => {}); };
+      document.getElementById("siteStar").onclick = toggleSiteFavourite;
+      document.getElementById("saveBtn").onclick = saveToSharePoint;
+      document.getElementById("refreshAccessBtn").onclick = refreshAccess;
+      document.getElementById("folderFilter").oninput = renderFolderList;
+      document.getElementById("folderFilter").onfocus = renderFolderList;
+      document.getElementById("folderFilter").onkeydown = (e) => {
+        if (e.key === "Escape") document.getElementById("folderList").classList.remove("open");
+      };
+      document.getElementById("folderFilter").onclick = renderFolderList;
+      document.addEventListener("click", (e) => {
+        // ignore clicks on buttons that were just removed (e.g. "Change"), they're not "outside"
+        if (!document.contains(e.target)) return;
+        if (!e.target.closest("#folderField")) document.getElementById("folderList").classList.remove("open");
+      });
+
+      loadFavourites();
+      start();
+    });
+
+    async function start() {
+      const select = document.getElementById("siteSelect");
+      if (/^PASTE-/.test(CLIENT_ID) || /^PASTE-/.test(TENANT_ID)) {
+        select.innerHTML = '<option value="">Not set up yet</option>';
+        showStatus("error", "Sign-in isn't set up: CLIENT_ID and TENANT_ID are missing in taskpane.html (docs/option-c-graph.md, part B).");
+        return;
+      }
+      if (!Office.context.requirements.isSetSupported("NestedAppAuth", "1.1")) {
+        select.innerHTML = '<option value="">Outlook update needed</option>';
+        showStatus("error", "This version of Outlook can't sign you in to the add-in. Please update Outlook " +
+          "(Windows: Version 2409 or later; Mac: 16.89 or later), or use Outlook on the web.");
+        return;
+      }
+      try {
+        msalApp = await msal.createNestablePublicClientApplication({
+          auth: { clientId: CLIENT_ID, authority: "https://login.microsoftonline.com/" + TENANT_ID },
+          cache: { cacheLocation: "localStorage" }
+        });
+        await getToken();
+      } catch (err) {
+        select.innerHTML = '<option value="">Couldn\'t sign in</option>';
+        showStatus("error", "Couldn't sign you in: " + friendlyAuthError(err));
+        return;
+      }
+      document.getElementById("signedInAs").textContent = "Signed in as " + userEmail;
+      loadSiteAccess(false);
+    }
+
+    // ================= Sign-in and Microsoft Graph =================
+
+    async function getToken() {
+      const request = { scopes: SCOPES };
+      try {
+        return (await msalApp.acquireTokenSilent(request)).accessToken;
+      } catch (silentError) {
+        if (!(silentError instanceof msal.InteractionRequiredAuthError)) throw silentError;
+        return (await msalApp.acquireTokenPopup(request)).accessToken;
+      }
+    }
+
+    function friendlyAuthError(err) {
+      const msg = (err && (err.errorMessage || err.message)) || String(err);
+      if (/AADSTS65001|consent/i.test(msg)) return "the add-in hasn't been approved for your organisation yet. Ask your admin to grant consent (docs/option-c-graph.md, part A5).";
+      if (/AADSTS50011|redirect/i.test(msg)) return "the sign-in address in the app registration doesn't match. Ask your admin to check docs/option-c-graph.md, part A2.";
+      if (/AADSTS53|conditional access|can't get there/i.test(msg)) return "your organisation's sign-in policy blocked it. Ask your admin (docs/option-c-graph.md, part A6).";
+      if (/user_cancelled|popup_window_error|cancel/i.test(msg)) return "the sign-in window was closed. Reopen the add-in to try again.";
+      return msg;
+    }
+
+    // Calls Microsoft Graph as the signed-in user. Retries politely when throttled.
+    async function graph(method, path, body, opts) {
+      opts = opts || {};
+      const url = /^https:/.test(path) ? path : GRAPH + path;
+      for (let attempt = 0; ; attempt++) {
+        const headers = Object.assign({ Authorization: "Bearer " + (await getToken()) }, opts.headers || {});
+        let payload = body;
+        if (body !== undefined && body !== null && !(body instanceof Blob) && !(body instanceof ArrayBuffer)) {
+          headers["Content-Type"] = "application/json";
+          payload = JSON.stringify(body);
+        }
+        const res = await fetch(url, { method: method, headers: headers, body: payload });
+        if ((res.status === 429 || res.status === 503) && attempt < 3) {
+          const wait = Math.min(Number(res.headers.get("Retry-After")) || (2 ** attempt), 10);
+          await sleep(wait * 1000);
+          continue;
+        }
+        if (opts.raw) {
+          if (!res.ok) throw await graphError(res);
+          return res;
+        }
+        const text = await res.text();
+        let data = null;
+        try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+        if (!res.ok) throw makeError(res.status, data);
+        return data;
+      }
+    }
+
+    async function graphError(res) {
+      let data = null;
+      try { data = await res.json(); } catch (e) { /* not JSON */ }
+      return makeError(res.status, data);
+    }
+
+    function makeError(status, data) {
+      const msg = (data && data.error && data.error.message) || ("Microsoft 365 returned an error (" + status + ").");
+      const err = new Error(msg);
+      err.status = status;
+      err.code = data && data.error && data.error.code;
+      return err;
+    }
+
+    async function graphAll(path) {
+      let out = [];
+      let next = path;
+      while (next) {
+        const page = await graph("GET", next);
+        out = out.concat((page && page.value) || []);
+        next = page && page["@odata.nextLink"];
+      }
+      return out;
+    }
+
+    // Up to 20 Graph requests in one round trip. Returns responses in the same order.
+    async function graphBatch(urls) {
+      const results = [];
+      for (let i = 0; i < urls.length; i += 20) {
+        const chunk = urls.slice(i, i + 20);
+        const resp = await graph("POST", "/$batch", {
+          requests: chunk.map((u, j) => ({ id: String(j), method: "GET", url: u }))
+        });
+        const byId = {};
+        ((resp && resp.responses) || []).forEach((r) => { byId[r.id] = r; });
+        chunk.forEach((_, j) => results.push(byId[String(j)] || { status: 500 }));
+      }
+      return results;
+    }
+
+    function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+    // ================= Site access (SharePoint decides) =================
+
+    function sitesKey() {
+      return SITES.map((s) => s.siteUrl.toLowerCase() + "|" + s.library).sort().join(",");
+    }
+
+    function readAccessCache() {
+      try {
+        const c = JSON.parse(window.localStorage.getItem(SITE_ACCESS_KEY) || "null");
+        if (!c || c.email !== userEmail || c.sites !== sitesKey()) return null;
+        if (Date.now() - c.at > SITE_ACCESS_CACHE_HOURS * 3600 * 1000) return null;
+        return c.allowed;
+      } catch (e) { return null; }
+    }
+
+    function writeAccessCache(allowed) {
+      try {
+        window.localStorage.setItem(SITE_ACCESS_KEY, JSON.stringify({
+          email: userEmail, sites: sitesKey(), at: Date.now(),
+          allowed: allowed.map((s) => ({ siteUrl: s.siteUrl, siteId: s.siteId, driveId: s.driveId }))
+        }));
+      } catch (e) { /* storage blocked: check again next time */ }
+    }
+
+    function sitePath(siteUrl) {
+      const u = new URL(siteUrl);
+      return "/sites/" + u.hostname + ":" + u.pathname.replace(/\/$/, "");
+    }
+
+    function lastSegment(webUrl) {
+      try {
+        const parts = decodeURIComponent(new URL(webUrl).pathname).replace(/\/$/, "").split("/");
+        return parts[parts.length - 1].toLowerCase();
+      } catch (e) { return ""; }
+    }
+
+    async function loadSiteAccess(force) {
+      const select = document.getElementById("siteSelect");
+      select.disabled = true;
+      select.innerHTML = '<option value="">Checking your access...</option>';
+      accessChecked = false;
+      renderFavourites();
+
+      const cached = force ? null : readAccessCache();
+      if (cached) {
+        applySiteAccess(cached.map((c) => Object.assign({}, SITES.find((s) => s.siteUrl === c.siteUrl), c))
+          .filter((s) => s.name), 0);
+        return;
+      }
+
+      let failed = 0;
+      const allowed = [];
+      try {
+        // 1) Which sites can this person open? (403/404 = no access)
+        const siteResults = await graphBatch(SITES.map((s) => sitePath(s.siteUrl) + "?$select=id,webUrl"));
+        const reachable = [];
+        siteResults.forEach((r, i) => {
+          if (r.status === 200 && r.body && r.body.id) reachable.push({ site: SITES[i], siteId: r.body.id });
+          else if (r.status !== 403 && r.status !== 404) failed++;
+        });
+        // 2) Find each site's library among the libraries they can see
+        const driveResults = await graphBatch(reachable.map((x) => "/sites/" + x.siteId + "/drives?$select=id,name,webUrl"));
+        driveResults.forEach((r, i) => {
+          const x = reachable[i];
+          if (r.status !== 200) { if (r.status !== 403 && r.status !== 404) failed++; return; }
+          const want = x.site.library.toLowerCase();
+          const drive = ((r.body && r.body.value) || []).find((d) => lastSegment(d.webUrl) === want);
+          if (drive) allowed.push(Object.assign({}, x.site, { siteId: x.siteId, driveId: drive.id }));
+        });
+      } catch (err) {
+        select.innerHTML = '<option value="">Couldn\'t check access</option>';
+        showStatus("error", "Couldn't check which sites you can use: " + err.message);
+        return;
+      }
+      if (failed === 0) writeAccessCache(allowed);
+      applySiteAccess(allowed, failed);
+    }
+
+    function applySiteAccess(sites, failedCount) {
+      allowedSites = sites;
+      accessChecked = true;
+      renderSiteOptions();
+      renderFavourites();
+
+      if (failedCount > 0) {
+        showStatus("error", "Couldn't check " + failedCount + " site(s), so they're hidden. Try \"Refresh my site access\" under Advanced.");
+      }
+      if (allowedSites.length === 0) {
+        if (!failedCount) showStatus("error", "You don't have access to any of the filing sites. Ask your admin.");
+        return;
+      }
+      const last = readLastSite();
+      if (!selectedSite && allowedSites.some((s) => s.siteUrl === last)) setSite(last).catch(() => {});
+    }
+
+    function refreshAccess() {
+      try { window.localStorage.removeItem(SITE_ACCESS_KEY); } catch (e) { /* ignore */ }
+      Object.keys(folderCache).forEach((k) => delete folderCache[k]);
+      allowedSites = [];
+      document.getElementById("siteSelect").value = "";
+      onSiteChange();
+      hideStatus();
+      if (msalApp) loadSiteAccess(true);
+    }
+
+    // ================= Step 1: site =================
+
+    function renderSiteOptions() {
+      const select = document.getElementById("siteSelect");
+      select.innerHTML = "";
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = allowedSites.length ? "Select a site..." : "No sites available";
+      select.appendChild(placeholder);
+      allowedSites.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach((s) => {
+        const opt = document.createElement("option");
+        opt.value = s.siteUrl;
+        opt.textContent = s.name;
+        select.appendChild(opt);
+      });
+      select.disabled = allowedSites.length === 0;
+      if (selectedSite) select.value = selectedSite.siteUrl;
+    }
+
+    function setSite(siteUrl) {
+      document.getElementById("siteSelect").value = siteUrl;
+      return onSiteChange();
+    }
+
+    function onSiteChange() {
+      const url = document.getElementById("siteSelect").value;
+      selectedSite = allowedSites.find((s) => s.siteUrl === url) || null;
+      selectedFolder = null;
+      allFolders = [];
+      renderSelectedFolder();
+      renderStars();
+
+      const filter = document.getElementById("folderFilter");
+      const field = document.getElementById("folderField");
+      filter.value = "";
+      document.getElementById("folderList").classList.remove("open");
+
+      if (!selectedSite) {
+        filter.disabled = true;
+        filter.placeholder = "Choose a site first";
+        field.classList.add("disabled");
+        updateSaveButtonState();
+        return Promise.resolve([]);
+      }
+      writeLastSite(selectedSite.siteUrl);
+      field.classList.remove("disabled");
+      updateSaveButtonState();
+      return loadFolders(selectedSite);
+    }
+
+    // ================= Step 2: folder =================
+
+    function toFolder(item) {
+      let path = "";
+      try { path = decodeURIComponent(new URL(item.webUrl).pathname); } catch (e) { /* keep empty */ }
+      return { Name: item.name, Path: path, Id: item.id };
+    }
+
+    function loadFolders(site) {
+      const filter = document.getElementById("folderFilter");
+      if (folderCache[site.siteUrl]) {
+        allFolders = folderCache[site.siteUrl];
+        filter.disabled = false;
+        filter.placeholder = "Search folders in " + site.name + "...";
+        return Promise.resolve(allFolders);
+      }
+      const token = ++folderLoadToken;
+      filter.disabled = true;
+      filter.placeholder = "Loading folders...";
+
+      // SharePoint only returns folders this person can see.
+      return graphAll("/drives/" + site.driveId + "/root/children?$select=id,name,folder,webUrl&$top=999")
+        .then((items) => {
+          const list = items
+            .filter((i) => i.folder && i.name !== "Forms" && !i.name.startsWith("_"))
+            .map(toFolder)
+            .sort((a, b) => a.Name.localeCompare(b.Name));
+          folderCache[site.siteUrl] = list;
+          if (token === folderLoadToken) {
+            allFolders = list;
+            filter.disabled = false;
+            filter.placeholder = list.length ? "Search folders in " + site.name + "..." : "Type a name to create a folder";
+          }
+          return list;
+        })
+        .catch((err) => {
+          if (token === folderLoadToken) {
+            filter.disabled = false;
+            filter.placeholder = "Couldn't load folders";
+            showStatus("error", "Couldn't load folders: " + err.message);
+          }
+          throw err;
+        });
+    }
+
+    function renderFolderList() {
+      if (!selectedSite) return;
+      const raw = document.getElementById("folderFilter").value.trim();
+      const query = raw.toLowerCase();
+      const listEl = document.getElementById("folderList");
+      const matches = allFolders.filter((f) => f.Name.toLowerCase().includes(query));
+      const exact = allFolders.some((f) => f.Name.toLowerCase() === query);
+      listEl.innerHTML = "";
+
+      matches.forEach((f) => {
+        const opt = document.createElement("div");
+        opt.className = "folder-option";
+        opt.textContent = f.Name;
+        opt.onclick = () => selectFolder(f);
+        listEl.appendChild(opt);
+      });
+      if (raw && !exact) {
+        const row = document.createElement("div");
+        row.className = matches.length ? "folder-create" : "folder-empty";
+        row.innerHTML = (matches.length ? "" : "No matching folder. ") + '<button type="button">Create "' +
+          escapeHtml(raw) + '" in ' + escapeHtml(selectedSite.name) + '</button>';
+        row.querySelector("button").onclick = () => createFolder(raw);
+        listEl.appendChild(row);
+      }
+      if (!raw && matches.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "folder-empty";
+        empty.textContent = "No folders you can access here yet. Type a name to create one.";
+        listEl.appendChild(empty);
+      }
+      listEl.classList.add("open");
+    }
+
+    function selectFolder(folder) {
+      selectedFolder = folder;
+      document.getElementById("folderFilter").value = "";
+      document.getElementById("folderList").classList.remove("open");
+      renderSelectedFolder();
+      updateSaveButtonState();
+    }
+
+    function renderSelectedFolder() {
+      const el = document.getElementById("selectedFolderDisplay");
+      el.innerHTML = "";
+      if (!selectedFolder) { renderStars(); return; }
+      const box = document.createElement("div");
+      box.className = "selected-folder";
+      const name = document.createElement("span");
+      name.textContent = selectedFolder.Name;
+      const star = document.createElement("button");
+      star.type = "button";
+      star.className = "star small";
+      star.id = "folderStar";
+      star.onclick = toggleFolderFavourite;
+      const change = document.createElement("button");
+      change.type = "button";
+      change.className = "change";
+      change.textContent = "Change";
+      change.onclick = () => {
+        selectedFolder = null;
+        renderSelectedFolder();
+        updateSaveButtonState();
+        document.getElementById("folderFilter").focus();
+      };
+      box.appendChild(name);
+      box.appendChild(star);
+      box.appendChild(change);
+      el.appendChild(box);
+      renderStars();
+    }
+
+    function validateFolderName(name) {
+      if (!name) return "Enter a folder name.";
+      if (INVALID_FOLDER_CHARS.test(name)) return 'Folder names can\'t contain " * : < > ? / \\ | # %';
+      if (/\.$/.test(name)) return "Folder names can't end with a full stop.";
+      if (name.length > 120) return "Keep folder names under 120 characters.";
+      return null;
+    }
+
+    async function createFolder(name) {
+      const site = selectedSite;
+      const problem = validateFolderName(name);
+      if (problem) { showStatus("error", problem); return; }
+      showStatus("pending", "Creating folder in " + site.name + "...");
+      try {
+        const item = await graph("POST", "/drives/" + site.driveId + "/root/children",
+          { name: name, folder: {}, "@microsoft.graph.conflictBehavior": "fail" });
+        const folder = toFolder(item);
+        const list = folderCache[site.siteUrl] || allFolders;
+        if (!list.some((f) => f.Id === folder.Id)) {
+          list.push(folder);
+          list.sort((a, b) => a.Name.localeCompare(b.Name));
+        }
+        folderCache[site.siteUrl] = list;
+        if (selectedSite === site) { allFolders = list; selectFolder(folder); }
+        hideStatus();
+      } catch (err) {
+        if (err.status === 409) showStatus("error", "A folder called \"" + name + "\" already exists here, but you may not have access to it.");
+        else if (err.status === 403) showStatus("error", "You don't have permission to create folders in this library. Ask the site owner for access.");
+        else showStatus("error", "Couldn't create that folder: " + err.message);
+      }
+    }
+
+    function updateSaveButtonState() {
+      const btn = document.getElementById("saveBtn");
+      btn.disabled = !(selectedSite && selectedFolder);
+      if (!selectedSite) btn.textContent = "Choose a site to continue";
+      else if (!selectedFolder) btn.textContent = "Choose a folder to continue";
+      else btn.textContent = "Save to " + selectedSite.name + " › " + selectedFolder.Name;
+    }
+
+    // ================= Save (all as the signed-in user) =================
+
+    function safeName(s) {
+      return String(s || "")
+        .replace(/[\r\n\t]+/g, " ")
+        .replace(/["*:<>?|]/g, "")
+        .replace(/[\/\\]/g, "-")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/[. ]+$/, "");
+    }
+
+    function filePrefix(received) {
+      const d = received ? new Date(received) : new Date();
+      const p = {};
+      new Intl.DateTimeFormat("en-AU", {
+        timeZone: FILE_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+      }).formatToParts(d).forEach((x) => { p[x.type] = x.value; });
+      return p.year + "-" + p.month + "-" + p.day + " " + p.hour + p.minute;
+    }
+
+    function addresses(list) {
+      return (list || []).map((r) => r && r.emailAddress && r.emailAddress.address).filter(Boolean).join(";");
+    }
+
+    async function listIdFor(site) {
+      if (!listIdCache[site.driveId]) {
+        const list = await graph("GET", "/drives/" + site.driveId + "/list?$select=id");
+        listIdCache[site.driveId] = list.id;
+      }
+      return listIdCache[site.driveId];
+    }
+
+    async function alreadyFiled(site, internetMessageId) {
+      const listId = await listIdFor(site);
+      const filter = "fields/InternetMessageId eq '" + internetMessageId.replace(/'/g, "''") + "'";
+      const res = await graph("GET", "/sites/" + site.siteId + "/lists/" + listId +
+        "/items?$select=id&$top=1&$filter=" + encodeURIComponent(filter), null,
+        { headers: { Prefer: "HonorNonIndexedQueriesWarningMayFailRandomly" } });
+      return ((res && res.value) || []).length > 0;
+    }
+
+    async function upload(site, folderId, name, blob) {
+      const target = "/drives/" + site.driveId + "/items/" + folderId + ":/" + encodeURIComponent(name) + ":";
+      if (blob.size <= SIMPLE_UPLOAD_MAX) {
+        return graph("PUT", target + "/content?@microsoft.graph.conflictBehavior=rename", blob,
+          { headers: { "Content-Type": "application/octet-stream" } });
+      }
+      const session = await graph("POST", target + "/createUploadSession",
+        { item: { "@microsoft.graph.conflictBehavior": "rename" } });
+      let result = null;
+      for (let start = 0; start < blob.size; start += UPLOAD_CHUNK) {
+        const end = Math.min(start + UPLOAD_CHUNK, blob.size);
+        const res = await fetch(session.uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Range": "bytes " + start + "-" + (end - 1) + "/" + blob.size },
+          body: blob.slice(start, end)
+        });
+        if (!res.ok && res.status !== 202) throw await graphError(res);
+        if (res.status === 200 || res.status === 201) result = await res.json();
+      }
+      return result;
+    }
+
+    // Writes the email details into the library columns. Returns names of columns that failed.
+    async function tag(site, itemId, fields) {
+      const path = "/drives/" + site.driveId + "/items/" + itemId + "/listItem/fields";
+      try {
+        await graph("PATCH", path, fields);
+        return [];
+      } catch (err) {
+        if (err.status !== 400) throw err;
+      }
+      const missing = [];
+      for (const key of Object.keys(fields)) {
+        try { await graph("PATCH", path, { [key]: fields[key] }); }
+        catch (err) { missing.push(key); }
+      }
+      return missing;
+    }
+
+    async function saveToSharePoint() {
+      const btn = document.getElementById("saveBtn");
+      btn.disabled = true;
+      const site = selectedSite;
+      const folder = selectedFolder;
+      const where = site.name + " › " + folder.Name;
+      const msgId = document.getElementById("msgIdInput").value.trim();
+      const msgPath = "/me/messages/" + encodeURIComponent(msgId);
+      showStatus("pending", "Reading the email...");
+
+      try {
+        const msg = await graph("GET", msgPath +
+          "?$select=subject,from,toRecipients,ccRecipients,receivedDateTime,internetMessageId,hasAttachments");
+
+        showStatus("pending", "Checking whether it's already filed...");
+        if (msg.internetMessageId && await alreadyFiled(site, msg.internetMessageId)) {
+          showStatus("success", "Already filed - this email was saved to SharePoint before, so nothing new was added.");
+          return;
+        }
+
+        const prefix = filePrefix(msg.receivedDateTime);
+        const fields = {
+          InternetMessageId: msg.internetMessageId || "",
+          EmailSubject: safeLine(msg.subject).slice(0, 255),
+          EmailFrom: ((msg.from && msg.from.emailAddress && msg.from.emailAddress.address) || "").slice(0, 255),
+          EmailTo: addresses(msg.toRecipients),
+          EmailCc: addresses(msg.ccRecipients)
+        };
+        const missing = new Set();
+
+        showStatus("pending", "Saving the email...");
+        const mime = await (await graph("GET", msgPath + "/$value", null, { raw: true })).blob();
+        const emailName = prefix + " - " + (safeName(msg.subject).slice(0, 100).trim() || "(no subject)") + ".eml";
+        const emailItem = await upload(site, folder.Id, emailName, mime);
+        (await tag(site, emailItem.id, fields)).forEach((m) => missing.add(m));
+
+        // Real attachments only: skip inline images (signature logos) and attached Outlook items.
+        // (Listed even when hasAttachments is false: Outlook sets it to false for messages with only inline items.)
+        const attachments = (await graphAll(msgPath + "/attachments?$select=id,name,contentType,size,isInline"))
+          .filter((a) => a["@odata.type"] === "#microsoft.graph.fileAttachment")
+          .filter((a) => !(a.isInline && /^image\//i.test(a.contentType || "")));
+        const failedAttachments = [];
+        for (let i = 0; i < attachments.length; i++) {
+          const a = attachments[i];
+          showStatus("pending", "Saving attachment " + (i + 1) + " of " + attachments.length + "...");
+          try {
+            const bytes = await (await graph("GET", msgPath + "/attachments/" + encodeURIComponent(a.id) + "/$value",
+              null, { raw: true })).blob();
+            const item = await upload(site, folder.Id,
+              prefix + " - [" + (i + 1) + "] " + (safeName(a.name) || "attachment"), bytes);
+            (await tag(site, item.id, fields)).forEach((m) => missing.add(m));
+          } catch (err) {
+            failedAttachments.push(a.name || ("attachment " + (i + 1)));
+          }
+        }
+
+        const n = attachments.length - failedAttachments.length;
+        const extra = n === 0 ? "" : n === 1 ? " with 1 attachment" : " with " + n + " attachments";
+        const problems = [];
+        if (failedAttachments.length) problems.push("couldn't save " + failedAttachments.join(", "));
+        if (missing.size) problems.push("some columns weren't filled in (" + Array.from(missing).join(", ") +
+          ") - add them to this library, see README.md, SharePoint setup");
+        if (problems.length) showStatus("error", "Saved to " + where + extra + ", but " + problems.join("; and ") + ".");
+        else showStatus("success", "Saved to " + where + extra + ".");
+      } catch (err) {
+        if (err.status === 403) showStatus("error", "You don't have permission to save into this folder. Ask the site owner for access.");
+        else if (err.status === 404) showStatus("error", "Couldn't find the email or the folder. If the folder was renamed, pick it again.");
+        else if (!err.status) showStatus("error", "Couldn't reach Microsoft 365. Check your connection and try again.");
+        else showStatus("error", "Couldn't save: " + err.message);
+      } finally {
+        updateSaveButtonState();
+      }
+    }
+
+    function safeLine(s) {
+      return String(s || "").replace(/[\r\n]+/g, " ");
+    }
+
+    // ================= Favourites (per user, stored in their mailbox) =================
+
+    function roaming() {
+      try { return Office.context.roamingSettings || null; } catch (e) { return null; }
+    }
+
+    function loadFavourites() {
+      const rs = roaming();
+      if (!rs) { favouritesAvailable = false; renderFavourites(); renderStars(); return; }
+      const stored = rs.get(FAVOURITES_KEY);
+      favourites = Array.isArray(stored) ? stored.filter((f) => f && f.siteUrl && (f.type === "site" || f.folderPath)) : [];
+      renderFavourites();
+      renderStars();
+    }
+
+    function saveFavourites(next, onDone) {
+      const rs = roaming();
+      if (!rs) return;
+      const previous = favourites;
+      favourites = next;
+      renderFavourites();
+      renderStars();
+      rs.set(FAVOURITES_KEY, next);
+      rs.saveAsync((result) => {
+        if (result.status !== Office.AsyncResultStatus.Succeeded) {
+          favourites = previous;
+          renderFavourites();
+          renderStars();
+          showStatus("error", "Couldn't save your favourites. Try again.");
+          return;
+        }
+        if (onDone) onDone();
+      });
+    }
+
+    function favKey(f) {
+      return f.type === "site"
+        ? "site|" + f.siteUrl.toLowerCase()
+        : "folder|" + f.siteUrl.toLowerCase() + "|" + String(f.folderPath).toLowerCase();
+    }
+
+    function findFavourite(candidate) {
+      const key = favKey(candidate);
+      return favourites.findIndex((f) => favKey(f) === key);
+    }
+
+    function addOrRemoveFavourite(candidate, label) {
+      const i = findFavourite(candidate);
+      if (i !== -1) {
+        saveFavourites(favourites.filter((_, j) => j !== i), () => showStatus("success", "Removed " + label + " from favourites."));
+        return;
+      }
+      if (favourites.length >= MAX_FAVOURITES) {
+        showStatus("error", "You can have up to " + MAX_FAVOURITES + " favourites. Remove one (the × next to it) and try again.");
+        return;
+      }
+      saveFavourites(favourites.concat([candidate]), () => showStatus("success", "Added " + label + " to favourites."));
+    }
+
+    function toggleSiteFavourite() {
+      if (!selectedSite) return;
+      addOrRemoveFavourite({ type: "site", siteUrl: selectedSite.siteUrl, siteName: selectedSite.name }, selectedSite.name);
+    }
+
+    function toggleFolderFavourite() {
+      if (!selectedSite || !selectedFolder) return;
+      addOrRemoveFavourite({
+        type: "folder", siteUrl: selectedSite.siteUrl, siteName: selectedSite.name,
+        folderName: selectedFolder.Name, folderPath: selectedFolder.Path
+      }, selectedFolder.Name);
+    }
+
+    function removeFavourite(index) {
+      const f = favourites[index];
+      if (!f) return;
+      const label = f.type === "site" ? f.siteName : f.folderName;
+      saveFavourites(favourites.filter((_, j) => j !== index), () => showStatus("success", "Removed " + label + " from favourites."));
+    }
+
+    function siteFor(fav) {
+      return allowedSites.find((s) => s.siteUrl.toLowerCase() === fav.siteUrl.toLowerCase()) || null;
+    }
+
+    function renderFavourites() {
+      const section = document.getElementById("favSection");
+      const list = document.getElementById("favList");
+      list.innerHTML = "";
+      if (!favouritesAvailable) { section.hidden = true; return; }
+      section.hidden = false;
+      if (favourites.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "fav-empty";
+        empty.textContent = "Click ☆ next to a site or folder to add it here (up to " + MAX_FAVOURITES + ").";
+        list.appendChild(empty);
+        return;
+      }
+      favourites.forEach((f, index) => {
+        const site = siteFor(f);
+        const known = SITES.some((s) => s.siteUrl.toLowerCase() === f.siteUrl.toLowerCase());
+        const row = document.createElement("div");
+        row.className = "fav";
+        const go = document.createElement("button");
+        go.type = "button";
+        go.className = "fav-go";
+        const siteName = (site && site.name) || f.siteName || "Site";
+        if (f.type === "site") {
+          go.innerHTML = '<span class="fav-icon">★</span>' + escapeHtml(siteName) + ' <span class="fav-site">(whole site)</span>';
+          go.title = siteName;
+        } else {
+          go.innerHTML = '<span class="fav-icon">★</span><span class="fav-site">' + escapeHtml(siteName) +
+            ' › </span>' + escapeHtml(f.folderName);
+          go.title = siteName + " › " + f.folderName;
+        }
+        if (!accessChecked) {
+          go.disabled = true;
+        } else if (!site) {
+          go.disabled = true;
+          go.insertAdjacentHTML("beforeend", '<span class="fav-note">' + (known ? "no access" : "site removed") + "</span>");
+        } else {
+          go.onclick = () => openFavourite(f);
+        }
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "fav-remove";
+        remove.innerHTML = "&times;";
+        remove.title = "Remove from favourites";
+        remove.setAttribute("aria-label", "Remove " + (f.type === "site" ? siteName : f.folderName) + " from favourites");
+        remove.onclick = () => removeFavourite(index);
+        row.appendChild(go);
+        row.appendChild(remove);
+        list.appendChild(row);
+      });
+    }
+
+    function openFavourite(f) {
+      const site = siteFor(f);
+      if (!site) return;
+      hideStatus();
+      const loading = (selectedSite && selectedSite.siteUrl === site.siteUrl && folderCache[site.siteUrl])
+        ? Promise.resolve(folderCache[site.siteUrl])
+        : setSite(site.siteUrl);
+      if (f.type === "site") {
+        loading.catch(() => {});
+        document.getElementById("folderFilter").focus();
+        return;
+      }
+      showStatus("pending", "Opening " + f.folderName + "...");
+      loading.then((folders) => {
+        const match = folders.find((x) => String(x.Path).toLowerCase() === String(f.folderPath).toLowerCase());
+        if (!match) {
+          showStatus("error", "\"" + f.folderName + "\" isn't available any more. It may have been renamed or deleted, " +
+            "or your access changed. You can remove it with the ×.");
+          return;
+        }
+        hideStatus();
+        selectFolder(match);
+      }).catch(() => { /* loadFolders already showed the error */ });
+    }
+
+    function renderStars() {
+      const siteStar = document.getElementById("siteStar");
+      setStar(siteStar, favouritesAvailable && !!selectedSite,
+        selectedSite && findFavourite({ type: "site", siteUrl: selectedSite.siteUrl }) !== -1, "this site");
+      const folderStar = document.getElementById("folderStar");
+      if (folderStar) {
+        setStar(folderStar, favouritesAvailable && !!(selectedSite && selectedFolder),
+          !!(selectedSite && selectedFolder) &&
+          findFavourite({ type: "folder", siteUrl: selectedSite.siteUrl, folderPath: selectedFolder.Path }) !== -1,
+          "this folder");
+        folderStar.hidden = !favouritesAvailable;
+      }
+    }
+
+    function setStar(btn, enabled, on, what) {
+      btn.disabled = !enabled;
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+      btn.innerHTML = on ? "&#9733;" : "&#9734;";
+      const label = on ? "Remove " + what + " from favourites" : "Add " + what + " to favourites";
+      btn.title = label;
+      btn.setAttribute("aria-label", label);
+    }
+
+    // ================= Helpers =================
+
+    function readLastSite() {
+      try { return window.localStorage.getItem(LAST_SITE_KEY); } catch (e) { return null; }
+    }
+
+    function writeLastSite(url) {
+      try { window.localStorage.setItem(LAST_SITE_KEY, url); } catch (e) { /* storage blocked */ }
+    }
+
+    function showStatus(kind, message) {
+      const el = document.getElementById("status");
+      el.className = "status visible " + kind;
+      el.textContent = message;
+    }
+
+    function hideStatus() {
+      document.getElementById("status").className = "status";
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str == null ? "" : String(str);
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
